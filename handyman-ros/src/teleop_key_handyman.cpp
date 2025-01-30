@@ -1,16 +1,20 @@
 #include <stdio.h>
 #include <signal.h>
 #include <termios.h>
-#include <ros/ros.h>
-#include <geometry_msgs/Twist.h>
-#include <tf/transform_listener.h>
-#include <sensor_msgs/JointState.h>
-#include <trajectory_msgs/JointTrajectory.h>
-#include <trajectory_msgs/JointTrajectoryPoint.h>
-#include <handyman/HandymanMsg.h>
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <sensor_msgs/msg/joint_state.hpp>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <trajectory_msgs/msg/joint_trajectory_point.hpp>
+#include "handyman/msg/handyman_msg.hpp"
 
-class HandymanTeleopKey
-{
+class HandymanTeleopKey : public rclcpp::Node {
 private:
   static const char KEYCODE_0 = 0x30;
   static const char KEYCODE_1 = 0x31;
@@ -65,8 +69,8 @@ public:
   static void rosSigintHandler(int sig);
   static int  canReceive(int fd);
 
-  void messageCallback(const handyman::HandymanMsg::ConstPtr& message);
-  void jointStateCallback(const sensor_msgs::JointState::ConstPtr& joint_state);
+  void messageCallback(const handyman::msg::HandymanMsg::ConstPtr& message);
+  void jointStateCallback(const sensor_msgs::msg::JointState::ConstPtr& joint_state);
   void sendMessage(const std::string &message);
   void moveBaseTwist(double linear_x, double linear_y, double angular_z);
   void moveBaseJointTrajectory(double linear_x, double linear_y, double theta, double duration_sec);
@@ -89,22 +93,23 @@ private:
   double arm_flex_joint_pos_;
   double wrist_flex_joint_pos_;
 
-  ros::NodeHandle node_handle_;
+  rclcpp::Subscription<handyman::msg::HandymanMsg>::SharedPtr sub_msg_;
+  rclcpp::Publisher<handyman::msg::HandymanMsg>::SharedPtr pub_msg_;
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr sub_joint_state_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_base_twist_;
+  rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr pub_base_trajectory_;
+  rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr pub_arm_trajectory_;
+  rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr pub_gripper_trajectory_;
 
-  ros::Subscriber sub_msg_;
-  ros::Publisher  pub_msg_;
-  ros::Subscriber sub_joint_state_;
-  ros::Publisher  pub_base_twist_;
-  ros::Publisher  pub_base_trajectory_;
-  ros::Publisher  pub_arm_trajectory_;
-  ros::Publisher  pub_gripper_trajectory_;
-
-  tf::TransformListener listener_;
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
 };
 
 
 HandymanTeleopKey::HandymanTeleopKey()
-{
+: Node("handyman_teleop_key"), 
+  tf_buffer_(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME)),
+  tf_listener_(tf_buffer_) {
   is_received_are_you_ready_ = false;
   is_received_environment_   = false;
 
@@ -115,14 +120,12 @@ HandymanTeleopKey::HandymanTeleopKey()
 }
 
 
-void HandymanTeleopKey::rosSigintHandler(int sig)
-{
-  ros::shutdown();
+void HandymanTeleopKey::rosSigintHandler(int sig) {
+  rclcpp::shutdown();
 }
 
 
-int HandymanTeleopKey::canReceive( int fd )
-{
+int HandymanTeleopKey::canReceive( int fd ) {
   fd_set fdset;
   int ret;
   struct timeval timeout;
@@ -135,12 +138,11 @@ int HandymanTeleopKey::canReceive( int fd )
   return select( fd+1 , &fdset , NULL , NULL , &timeout );
 }
 
-void HandymanTeleopKey::messageCallback(const handyman::HandymanMsg::ConstPtr& message)
-{
+void HandymanTeleopKey::messageCallback(const handyman::msg::HandymanMsg::ConstPtr& message) {
   if(message->message.c_str()==MSG_ARE_YOU_READY && is_received_are_you_ready_){ return; }
   if(message->message.c_str()==MSG_ENVIRONMENT   && is_received_environment_)  { return; }
 
-  ROS_INFO("Subscribe message:%s, %s", message->message.c_str(), message->detail.c_str());
+  RCLCPP_INFO(this->get_logger(), "Subscribe message:%s, %s", message->message.c_str(), message->detail.c_str());
 
   if(message->message.c_str()==MSG_ARE_YOU_READY){ is_received_are_you_ready_ = true; }
   if(message->message.c_str()==MSG_ENVIRONMENT  ){ is_received_environment_   = true; }
@@ -152,8 +154,7 @@ void HandymanTeleopKey::messageCallback(const handyman::HandymanMsg::ConstPtr& m
   }
 }
 
-void HandymanTeleopKey::jointStateCallback(const sensor_msgs::JointState::ConstPtr& joint_state)
-{
+void HandymanTeleopKey::jointStateCallback(const sensor_msgs::msg::JointState::ConstPtr& joint_state) {
   for(int i=0; i<joint_state->name.size(); i++)
   {
     if(joint_state->name[i] == "arm_lift_joint")
@@ -172,77 +173,86 @@ void HandymanTeleopKey::jointStateCallback(const sensor_msgs::JointState::ConstP
   }
 }
 
-void HandymanTeleopKey::sendMessage(const std::string &message)
-{
-  ROS_INFO("Send message:%s", message.c_str());
+void HandymanTeleopKey::sendMessage(const std::string &message) {
+  RCLCPP_INFO(this->get_logger(), "Send message:%s", message.c_str());
 
-  handyman::HandymanMsg handyman_msg;
+  handyman::msg::HandymanMsg handyman_msg;
   handyman_msg.message = message;
-  pub_msg_.publish(handyman_msg);
+  pub_msg_->publish(handyman_msg);
 }
 
-void HandymanTeleopKey::moveBaseTwist(double linear_x, double linear_y, double angular_z)
-{
-  geometry_msgs::Twist twist;
+void HandymanTeleopKey::moveBaseTwist(double linear_x, double linear_y, double angular_z) {
+  geometry_msgs::msg::Twist twist;
 
   twist.linear.x  = linear_x;
   twist.linear.y  = linear_y;
   twist.angular.z = angular_z;
-  pub_base_twist_.publish(twist);
+  pub_base_twist_->publish(twist);
 }
 
-void HandymanTeleopKey::moveBaseJointTrajectory(double linear_x, double linear_y, double theta, double duration_sec)
-{
-  if(listener_.canTransform("/odom", "/base_footprint", ros::Time(0)) == false)
+void HandymanTeleopKey::moveBaseJointTrajectory(double linear_x, double linear_y, double theta, double duration_sec) {
+  if (!tf_buffer_.canTransform("odom", "base_footprint", tf2::TimePointZero))
   {
     return;
   }
+  geometry_msgs::msg::PointStamped basefootprint_2_target;
+  geometry_msgs::msg::PointStamped odom_2_target;
 
-  geometry_msgs::PointStamped basefootprint_2_target;
-  geometry_msgs::PointStamped odom_2_target;
-  basefootprint_2_target.header.frame_id = "/base_footprint";
-  basefootprint_2_target.header.stamp = ros::Time(0);
+  basefootprint_2_target.header.frame_id = "base_footprint";
+  basefootprint_2_target.header.stamp = rclcpp::Time(0);
   basefootprint_2_target.point.x = linear_x;
   basefootprint_2_target.point.y = linear_y;
-  listener_.transformPoint("/odom", basefootprint_2_target, odom_2_target);
 
-  tf::StampedTransform transform;
-  listener_.lookupTransform("/odom", "/base_footprint", ros::Time(0), transform);
-  tf::Quaternion currentRotation = transform.getRotation();
-  tf::Matrix3x3 mat(currentRotation);
+  try {
+    odom_2_target = tf_buffer_.transform<geometry_msgs::msg::PointStamped>(
+      basefootprint_2_target, "odom", tf2::Duration(std::chrono::seconds(0))
+);  } catch (tf2::TransformException &ex) {
+      RCLCPP_WARN(rclcpp::get_logger("tf2_listener"), "Transform failed: %s", ex.what());
+  }
+
+  geometry_msgs::msg::TransformStamped transform;
+  try {
+      transform = tf_buffer_.lookupTransform("odom", "base_footprint", tf2::TimePointZero);
+  } catch (tf2::TransformException &ex) {
+      RCLCPP_WARN(rclcpp::get_logger("tf2_listener"), "Lookup failed: %s", ex.what());
+  }
+
+  tf2::Quaternion currentRotation;
+  tf2::fromMsg(transform.transform.rotation, currentRotation);
+  tf2::Matrix3x3 mat(currentRotation);
   double roll, pitch, yaw;
   mat.getRPY(roll, pitch, yaw);
 
-  trajectory_msgs::JointTrajectory joint_trajectory;
+  trajectory_msgs::msg::JointTrajectory joint_trajectory;
   joint_trajectory.joint_names.push_back("odom_x");
   joint_trajectory.joint_names.push_back("odom_y");
   joint_trajectory.joint_names.push_back("odom_t");
 
-  trajectory_msgs::JointTrajectoryPoint omni_joint_point;
+  trajectory_msgs::msg::JointTrajectoryPoint omni_joint_point;
   omni_joint_point.positions = {odom_2_target.point.x, odom_2_target.point.y, yaw + theta};
-  omni_joint_point.time_from_start = ros::Duration(duration_sec);
+  omni_joint_point.time_from_start = rclcpp::Duration::from_seconds(duration_sec);
 
   joint_trajectory.points.push_back(omni_joint_point);
-  pub_base_trajectory_.publish(joint_trajectory);
+  pub_base_trajectory_->publish(joint_trajectory);
 }
 
 
 void HandymanTeleopKey::operateArm(const double arm_lift_pos, const double arm_flex_pos, const double wrist_flex_pos, const double duration_sec)
 {
-  trajectory_msgs::JointTrajectory joint_trajectory;
+  trajectory_msgs::msg::JointTrajectory joint_trajectory;
   joint_trajectory.joint_names.push_back("arm_lift_joint");
   joint_trajectory.joint_names.push_back("arm_flex_joint");
   joint_trajectory.joint_names.push_back("arm_roll_joint");
   joint_trajectory.joint_names.push_back("wrist_flex_joint");
   joint_trajectory.joint_names.push_back("wrist_roll_joint");
 
-  trajectory_msgs::JointTrajectoryPoint arm_joint_point;
+  trajectory_msgs::msg::JointTrajectoryPoint arm_joint_point;
 
   arm_joint_point.positions = {arm_lift_pos, arm_flex_pos, 0.0f, wrist_flex_pos, 0.0f};
 
-  arm_joint_point.time_from_start = ros::Duration(duration_sec);
+  arm_joint_point.time_from_start = rclcpp::Duration::from_seconds(duration_sec);
   joint_trajectory.points.push_back(arm_joint_point);
-  pub_arm_trajectory_.publish(joint_trajectory);
+  pub_arm_trajectory_->publish(joint_trajectory);
 }
 
 void HandymanTeleopKey::operateArm(const std::string &name, const double position, const double duration_sec)
@@ -280,23 +290,23 @@ void HandymanTeleopKey::operateHand(bool is_hand_open)
 
   if(is_hand_open)
   {
-    ROS_DEBUG("Grasp");
+    RCLCPP_DEBUG(this->get_logger(), "Grasp");
     positions.push_back(-0.105);
   }
   else
   {
-    ROS_DEBUG("Open hand");
+    RCLCPP_DEBUG(this->get_logger(), "Open hand");
     positions.push_back(+1.239);
   }
 
-  trajectory_msgs::JointTrajectoryPoint point;
+  trajectory_msgs::msg::JointTrajectoryPoint point;
   point.positions = positions;
-  point.time_from_start = ros::Duration(2);
+  point.time_from_start = rclcpp::Duration::from_seconds(2.0);
 
-  trajectory_msgs::JointTrajectory joint_trajectory;
+  trajectory_msgs::msg::JointTrajectory joint_trajectory;
   joint_trajectory.joint_names = joint_names;
   joint_trajectory.points.push_back(point);
-  pub_gripper_trajectory_.publish(joint_trajectory);
+  pub_gripper_trajectory_->publish(joint_trajectory);
 }
 
 
@@ -357,7 +367,15 @@ int HandymanTeleopKey::run(int argc, char **argv)
   // This must be set after the first NodeHandle is created.
   signal(SIGINT, rosSigintHandler);
 
-  ros::Rate loop_rate(40);
+  rclcpp::Rate loop_rate(40);
+
+  this->declare_parameter<std::string>("sub_msg_to_robot_topic_name", "/handyman/message/to_robot");
+  this->declare_parameter<std::string>("pub_msg_to_moderator_topic_name", "/handyman/message/to_moderator");
+  this->declare_parameter<std::string>("sub_joint_state_topic_name", "/hsrb/joint_states");
+  this->declare_parameter<std::string>("pub_base_twist_topic_name", "/hsrb/command_velocity");
+  this->declare_parameter<std::string>("pub_base_trajectory_topic_name", "/hsrb/omni_base_controller/command");
+  this->declare_parameter<std::string>("pub_arm_trajectory_topic_name", "/hsrb/arm_trajectory_controller/command");
+  this->declare_parameter<std::string>("pub_gripper_trajectory_topic_name", "/hsrb/gripper_controller/command");
 
   std::string sub_msg_to_robot_topic_name;
   std::string pub_msg_to_moderator_topic_name;
@@ -366,25 +384,22 @@ int HandymanTeleopKey::run(int argc, char **argv)
   std::string pub_base_trajectory_topic_name;
   std::string pub_arm_trajectory_topic_name;
   std::string pub_gripper_trajectory_topic_name;
+  
+  this->get_parameter("sub_msg_to_robot_topic_name", sub_msg_to_robot_topic_name);
+  this->get_parameter("pub_msg_to_moderator_topic_name", pub_msg_to_moderator_topic_name);
+  this->get_parameter("sub_joint_state_topic_name", sub_joint_state_topic_name);
+  this->get_parameter("pub_base_twist_topic_name", pub_base_twist_topic_name);
+  this->get_parameter("pub_base_trajectory_topic_name", pub_base_trajectory_topic_name);
+  this->get_parameter("pub_arm_trajectory_topic_name", pub_arm_trajectory_topic_name);
+  this->get_parameter("pub_gripper_trajectory_topic_name", pub_gripper_trajectory_topic_name);
 
-  node_handle_.param<std::string>("sub_msg_to_robot_topic_name",       sub_msg_to_robot_topic_name,       "/handyman/message/to_robot");
-  node_handle_.param<std::string>("pub_msg_to_moderator_topic_name",   pub_msg_to_moderator_topic_name,   "/handyman/message/to_moderator");
+  sub_msg_ = this->create_subscription<handyman::msg::HandymanMsg>(sub_msg_to_robot_topic_name, 100, std::bind(&HandymanTeleopKey::messageCallback, this, std::placeholders::_1));
+  pub_msg_ = this->create_publisher<handyman::msg::HandymanMsg>(pub_msg_to_moderator_topic_name, 10);
+  pub_base_twist_= this->create_publisher<geometry_msgs::msg::Twist>(pub_base_twist_topic_name, 10);
+  pub_base_trajectory_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(pub_base_trajectory_topic_name, 10);
+  pub_arm_trajectory_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(pub_arm_trajectory_topic_name, 10);
+  pub_gripper_trajectory_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(pub_gripper_trajectory_topic_name, 10);
 
-  node_handle_.param<std::string>("sub_joint_state_topic_name",        sub_joint_state_topic_name,        "/hsrb/joint_states");
-  node_handle_.param<std::string>("pub_base_twist_topic_name",         pub_base_twist_topic_name,         "/hsrb/command_velocity");
-  node_handle_.param<std::string>("pub_base_trajectory_topic_name",    pub_base_trajectory_topic_name,    "/hsrb/omni_base_controller/command");
-  node_handle_.param<std::string>("pub_arm_trajectory_topic_name",     pub_arm_trajectory_topic_name,     "/hsrb/arm_trajectory_controller/command");
-  node_handle_.param<std::string>("pub_gripper_trajectory_topic_name", pub_gripper_trajectory_topic_name, "/hsrb/gripper_controller/command");
-
-
-  sub_msg_                = node_handle_.subscribe<handyman::HandymanMsg>(sub_msg_to_robot_topic_name, 100, &HandymanTeleopKey::messageCallback, this);
-  pub_msg_                = node_handle_.advertise<handyman::HandymanMsg>(pub_msg_to_moderator_topic_name, 10);
-
-  sub_joint_state_        = node_handle_.subscribe<sensor_msgs::JointState>(sub_joint_state_topic_name, 10, &HandymanTeleopKey::jointStateCallback, this);
-  pub_base_twist_         = node_handle_.advertise<geometry_msgs::Twist>            (pub_base_twist_topic_name, 10);
-  pub_base_trajectory_    = node_handle_.advertise<trajectory_msgs::JointTrajectory>(pub_base_trajectory_topic_name, 10);
-  pub_arm_trajectory_     = node_handle_.advertise<trajectory_msgs::JointTrajectory>(pub_arm_trajectory_topic_name, 10);
-  pub_gripper_trajectory_ = node_handle_.advertise<trajectory_msgs::JointTrajectory>(pub_gripper_trajectory_topic_name, 10);
 
 
   const float linear_coef  = 0.2f;
@@ -397,7 +412,7 @@ int HandymanTeleopKey::run(int argc, char **argv)
   std::string arm_flex_joint_name   = "arm_flex_joint";
   std::string wrist_flex_joint_name = "wrist_flex_joint";
 
-  while (ros::ok())
+  while (rclcpp::ok())
   {
     if(canReceive(kfd))
     {
@@ -442,142 +457,141 @@ int HandymanTeleopKey::run(int argc, char **argv)
         }
         case KEYCODE_UP:
         {
-          ROS_DEBUG("Go Forward");
+          RCLCPP_DEBUG(this->get_logger(), "Go Forward");
           moveBaseTwist(+linear_coef*move_speed, 0.0, 0.0);
           break;
         }
         case KEYCODE_DOWN:
         {
-          ROS_DEBUG("Go Backward");
+          RCLCPP_DEBUG(this->get_logger(), "Go Backward");
           moveBaseTwist(-linear_coef*move_speed, 0.0, 0.0);
           break;
         }
         case KEYCODE_RIGHT:
         {
-          ROS_DEBUG("Go Right");
+          RCLCPP_DEBUG(this->get_logger(), "Go Right");
           moveBaseTwist(0.0, 0.0, -angular_coef*move_speed);
           break;
         }
         case KEYCODE_LEFT:
         {
-          ROS_DEBUG("Go Left");
+          RCLCPP_DEBUG(this->get_logger(), "Go Left");
           moveBaseTwist(0.0, 0.0, +angular_coef*move_speed);
           break;
         }
         case KEYCODE_SPACE:
         {
-          ROS_DEBUG("Stop");
+          RCLCPP_DEBUG(this->get_logger(), "Stop");
           moveBaseTwist(0.0, 0.0, 0.0);
           break;
         }
         case KEYCODE_U:
         {
-          ROS_DEBUG("Move Left Forward");
+          RCLCPP_DEBUG(this->get_logger(), "Move Left Forward");
           moveBaseJointTrajectory(+1.0, +1.0, +M_PI_4, 10);
           break;
         }
         case KEYCODE_I:
         {
-          ROS_DEBUG("Move Forward");
+          RCLCPP_DEBUG(this->get_logger(), "Move Forward");
           moveBaseJointTrajectory(+1.0, 0.0, 0.0, 10);
           break;
         }
         case KEYCODE_O:
         {
-          ROS_DEBUG("Move Right Forward");
+          RCLCPP_DEBUG(this->get_logger(), "Move Right Forward");
           moveBaseJointTrajectory(+1.0, -1.0, -M_PI_4, 10);
           break;
         }
         case KEYCODE_J:
         {
-          ROS_DEBUG("Move Left");
+          RCLCPP_DEBUG(this->get_logger(), "Move Left");
           moveBaseJointTrajectory(0.0, +1.0, +M_PI_2, 10);
           break;
         }
         case KEYCODE_K:
         {
-          ROS_DEBUG("Stop");
+          RCLCPP_DEBUG(this->get_logger(), "Stop");
           moveBaseJointTrajectory(0.0, 0.0, 0.0, 0.5);
           break;
         }
         case KEYCODE_L:
         {
-          ROS_DEBUG("Move Right");
+          RCLCPP_DEBUG(this->get_logger(), "Move Right");
           moveBaseJointTrajectory(0.0, -1.0, -M_PI_2, 10);
           break;
         }
         case KEYCODE_M:
         {
-          ROS_DEBUG("Move Left Backward");
+          RCLCPP_DEBUG(this->get_logger(), "Move Left Backward");
           moveBaseJointTrajectory(-1.0, +1.0, +M_PI_2+M_PI_4, 10);
           break;
         }
         case KEYCODE_COMMA:
         {
-          ROS_DEBUG("Move Backward");
+          RCLCPP_DEBUG(this->get_logger(), "Move Backward");
           moveBaseJointTrajectory(-1.0, 0.0, +M_PI, 10);
           break;
         }
         case KEYCODE_PERIOD:
         {
-          ROS_DEBUG("Move Right Backward");
+          RCLCPP_DEBUG(this->get_logger(), "Move Right Backward");
           moveBaseJointTrajectory(-1.0, -1.0, -M_PI_2-M_PI_4, 10);
           break;
         }
         case KEYCODE_Q:
         {
-          ROS_DEBUG("Move Speed Up");
+          RCLCPP_DEBUG(this->get_logger(), "Move Speed Up");
           move_speed *= 2;
           if(move_speed > 2  ){ move_speed=2; }
           break;
         }
         case KEYCODE_Z:
         {
-          ROS_DEBUG("Move Speed Down");
+          RCLCPP_DEBUG(this->get_logger(), "Move Speed Down");
           move_speed /= 2;
           if(move_speed < 0.125){ move_speed=0.125; }
           break;
         }
         case KEYCODE_Y:
         {
-          ROS_DEBUG("Up Torso");
+          RCLCPP_DEBUG(this->get_logger(), "Up Torso");
           operateArm(arm_lift_joint_name, 0.69, std::max<int>((int)(std::abs(0.69 - arm_lift_joint_pos1_) / 0.05), 1));
           break;
         }
         case KEYCODE_H:
         {
-          ROS_DEBUG("Stop Torso");
+          RCLCPP_DEBUG(this->get_logger(), "Stop Torso");
           operateArm(arm_lift_joint_name, 2.0*arm_lift_joint_pos1_-arm_lift_joint_pos2_, 0.5);
           break;
         }
         case KEYCODE_N:
         {
-          ROS_DEBUG("Down Torso");
+          RCLCPP_DEBUG(this->get_logger(), "Down Torso");
           operateArm(arm_lift_joint_name, 0.0, std::max<int>((int)(std::abs(0.0 - arm_lift_joint_pos1_) / 0.05), 1));
           break;
         }
-        //operateArm(const double arm_lift_pos, const double arm_flex_pos, const double wrist_flex_pos, const int duration_sec);
         case KEYCODE_A:
         {
-          ROS_DEBUG("Rotate Arm - Vertical");
+          RCLCPP_DEBUG(this->get_logger(), "Rotate Arm - Vertical");
           operateArmFlex(0.0, -1.57);
           break;
         }
         case KEYCODE_B:
         {
-          ROS_DEBUG("Rotate Arm - Upward");
+          RCLCPP_DEBUG(this->get_logger(), "Rotate Arm - Upward");
           operateArmFlex(-0.785, -0.785);
           break;
         }
         case KEYCODE_C:
         {
-          ROS_DEBUG("Rotate Arm - Horizontal");
+          RCLCPP_DEBUG(this->get_logger(), "Rotate Arm - Horizontal");
           operateArmFlex(-1.57, 0.0);
           break;
         }
         case KEYCODE_D:
         {
-          ROS_DEBUG("Rotate Arm - Downward");
+          RCLCPP_DEBUG(this->get_logger(), "Rotate Arm - Downward");
           operateArmFlex(-2.2, 0.35);
           break;
         }
@@ -591,7 +605,7 @@ int HandymanTeleopKey::run(int argc, char **argv)
       }
     }
 
-    ros::spinOnce();
+    rclcpp::spin_some(this->get_node_base_interface());
 
     loop_rate.sleep();
   }
@@ -607,11 +621,9 @@ int HandymanTeleopKey::run(int argc, char **argv)
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "handyman_teleop_key");
+  rclcpp::init(argc, argv);
 
   HandymanTeleopKey handyman_teleop_key;
   return handyman_teleop_key.run(argc, argv);
 }
-
-
 
