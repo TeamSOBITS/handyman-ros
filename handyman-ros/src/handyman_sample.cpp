@@ -87,8 +87,7 @@ private:
     if(message->message.c_str()==MSG_MISSION_COMPLETE) exit(EXIT_SUCCESS);
   }
 
-  void sendMessage(rclcpp::Publisher<handyman::msg::HandymanMsg>::SharedPtr publisher, const std::string &message)
-  {
+  void sendMessage(rclcpp::Publisher<handyman::msg::HandymanMsg>::SharedPtr publisher, const std::string &message) {
     RCLCPP_INFO(this->get_logger(), "Send message:%s", message.c_str());
 
     handyman::msg::HandymanMsg handyman_msg;
@@ -96,24 +95,19 @@ private:
     publisher->publish(handyman_msg);
   }
 
-  geometry_msgs::msg::TransformStamped getTfBase(tf2_ros::Buffer &tf_buffer)
-  {
+  geometry_msgs::msg::TransformStamped getTfBase(tf2_ros::Buffer &tf_buffer) {
     geometry_msgs::msg::TransformStamped tf_transform;
 
-    try
-    {
+    try {
       tf_transform = tf_buffer.lookupTransform("odom", "base_footprint", tf2::TimePointZero);
-    }
-    catch (tf2::TransformException &ex)
-    {
+    } catch (tf2::TransformException &ex) {
       RCLCPP_ERROR(this->get_logger(), "%s", ex.what());
     }
 
     return tf_transform;
   }
 
-  void moveBase(rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher, double linear_x, double linear_y, double angular_z)
-  {
+  void moveBase(rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher, double linear_x, double linear_y, double angular_z) {
     geometry_msgs::msg::Twist twist;
 
     twist.linear.x  = linear_x;
@@ -122,21 +116,18 @@ private:
     publisher->publish(twist);
   }
 
-  void stopBase(rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher)
-  {
+  void stopBase(rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher) {
     moveBase(publisher, 0.0, 0.0, 0.0);
   }
 
-  void moveArm(rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr publisher, const std::vector<double> &positions, rclcpp::Duration &duration)
-  {
+  void moveArm(rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr publisher, const std::vector<double> &positions, rclcpp::Duration &duration) {
     arm_joint_trajectory_.points[0].positions = positions;
     arm_joint_trajectory_.points[0].time_from_start = duration;
 
     publisher->publish(arm_joint_trajectory_);
   }
 
-  void operateHand(rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr publisher, bool should_grasp)
-  {
+  void operateHand(rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr publisher, bool should_grasp) {
     std::vector<std::string> joint_names {"hand_motor_joint"};
     std::vector<double> positions;
 
@@ -283,7 +274,7 @@ public:
           break;
         }
         case WaitForGrasping: {
-          if (this->now() - waiting_start_time > rclcpp::Duration::from_seconds(3.0)) {
+          if (rclcpp::Clock(RCL_SYSTEM_TIME).now() - waiting_start_time > rclcpp::Duration::from_seconds(3.0)) {
             sendMessage(pub_msg, MSG_OBJECT_GRASPED);
             step_++;
           }

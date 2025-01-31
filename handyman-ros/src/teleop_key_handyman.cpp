@@ -147,29 +147,20 @@ void HandymanTeleopKey::messageCallback(const handyman::msg::HandymanMsg::ConstP
   if(message->message.c_str()==MSG_ARE_YOU_READY){ is_received_are_you_ready_ = true; }
   if(message->message.c_str()==MSG_ENVIRONMENT  ){ is_received_environment_   = true; }
 
-  if(message->message.c_str()==MSG_TASK_SUCCEEDED || message->message.c_str()==MSG_TASK_FAILED || message->message.c_str()==MSG_MISSION_COMPLETE)
-  {
+  if(message->message.c_str()==MSG_TASK_SUCCEEDED || message->message.c_str()==MSG_TASK_FAILED || message->message.c_str()==MSG_MISSION_COMPLETE) {
     is_received_are_you_ready_ = false;
     is_received_environment_   = false;
   }
 }
 
 void HandymanTeleopKey::jointStateCallback(const sensor_msgs::msg::JointState::ConstPtr& joint_state) {
-  for(int i=0; i<joint_state->name.size(); i++)
-  {
-    if(joint_state->name[i] == "arm_lift_joint")
-    {
+  for(int i=0; i<joint_state->name.size(); i++) {
+    if(joint_state->name[i] == "arm_lift_joint") {
       arm_lift_joint_pos2_ = arm_lift_joint_pos1_;
       arm_lift_joint_pos1_ = joint_state->position[i];
     }
-    if(joint_state->name[i] == "arm_flex_joint")
-    {
-      arm_flex_joint_pos_ = joint_state->position[i];
-    }
-    if(joint_state->name[i] == "wrist_flex_joint")
-    {
-      wrist_flex_joint_pos_ = joint_state->position[i];
-    }
+    if(joint_state->name[i] == "arm_flex_joint") arm_flex_joint_pos_ = joint_state->position[i];
+    if(joint_state->name[i] == "wrist_flex_joint") wrist_flex_joint_pos_ = joint_state->position[i];
   }
 }
 
@@ -191,10 +182,7 @@ void HandymanTeleopKey::moveBaseTwist(double linear_x, double linear_y, double a
 }
 
 void HandymanTeleopKey::moveBaseJointTrajectory(double linear_x, double linear_y, double theta, double duration_sec) {
-  if (!tf_buffer_.canTransform("odom", "base_footprint", tf2::TimePointZero))
-  {
-    return;
-  }
+  if (!tf_buffer_.canTransform("odom", "base_footprint", tf2::TimePointZero)) return;
   geometry_msgs::msg::PointStamped basefootprint_2_target;
   geometry_msgs::msg::PointStamped odom_2_target;
 
@@ -205,8 +193,8 @@ void HandymanTeleopKey::moveBaseJointTrajectory(double linear_x, double linear_y
 
   try {
     odom_2_target = tf_buffer_.transform<geometry_msgs::msg::PointStamped>(
-      basefootprint_2_target, "odom", tf2::Duration(std::chrono::seconds(0))
-);  } catch (tf2::TransformException &ex) {
+      basefootprint_2_target, "odom", tf2::Duration(std::chrono::seconds(0)));
+  } catch (tf2::TransformException &ex) {
       RCLCPP_WARN(rclcpp::get_logger("tf2_listener"), "Transform failed: %s", ex.what());
   }
 
@@ -237,8 +225,7 @@ void HandymanTeleopKey::moveBaseJointTrajectory(double linear_x, double linear_y
 }
 
 
-void HandymanTeleopKey::operateArm(const double arm_lift_pos, const double arm_flex_pos, const double wrist_flex_pos, const double duration_sec)
-{
+void HandymanTeleopKey::operateArm(const double arm_lift_pos, const double arm_flex_pos, const double wrist_flex_pos, const double duration_sec) {
   trajectory_msgs::msg::JointTrajectory joint_trajectory;
   joint_trajectory.joint_names.push_back("arm_lift_joint");
   joint_trajectory.joint_names.push_back("arm_flex_joint");
@@ -255,46 +242,31 @@ void HandymanTeleopKey::operateArm(const double arm_lift_pos, const double arm_f
   pub_arm_trajectory_->publish(joint_trajectory);
 }
 
-void HandymanTeleopKey::operateArm(const std::string &name, const double position, const double duration_sec)
-{
-  if(name == "arm_lift_joint")
-  {
-    this->operateArm(position, arm_flex_joint_pos_, wrist_flex_joint_pos_, duration_sec);
-  }
-  else if(name == "arm_flex_joint")
-  {
-    this->operateArm(2.0*arm_lift_joint_pos1_-arm_lift_joint_pos2_, position, wrist_flex_joint_pos_, duration_sec);
-  }
-  else if(name == "wrist_flex_joint")
-  {
-    this->operateArm(2.0*arm_lift_joint_pos1_-arm_lift_joint_pos2_, arm_flex_joint_pos_, position, duration_sec);
-  }
+void HandymanTeleopKey::operateArm(const std::string &name, const double position, const double duration_sec) {
+  if(name == "arm_lift_joint") this->operateArm(position, arm_flex_joint_pos_, wrist_flex_joint_pos_, duration_sec);
+  else if(name == "arm_flex_joint") this->operateArm(2.0*arm_lift_joint_pos1_-arm_lift_joint_pos2_, position, wrist_flex_joint_pos_, duration_sec);
+  else if(name == "wrist_flex_joint") this->operateArm(2.0*arm_lift_joint_pos1_-arm_lift_joint_pos2_, arm_flex_joint_pos_, position, duration_sec);
 }
 
-void HandymanTeleopKey::operateArmFlex(const double arm_flex_pos, const double wrist_flex_pos)
-{
+void HandymanTeleopKey::operateArmFlex(const double arm_flex_pos, const double wrist_flex_pos) {
   double duration = std::max(this->getDurationRot(arm_flex_pos, arm_flex_joint_pos_), this->getDurationRot(wrist_flex_pos, wrist_flex_joint_pos_));
 
   this->operateArm(2.0*arm_lift_joint_pos1_-arm_lift_joint_pos2_, arm_flex_pos, wrist_flex_pos, duration);
 }
 
-double HandymanTeleopKey::getDurationRot(const double next_pos, const double current_pos)
-{
+double HandymanTeleopKey::getDurationRot(const double next_pos, const double current_pos) {
   return std::max<double>((std::abs(next_pos - current_pos) * 1.2), 1.0);
 }
 
-void HandymanTeleopKey::operateHand(bool is_hand_open)
-{
+void HandymanTeleopKey::operateHand(bool is_hand_open) {
   std::vector<std::string> joint_names {"hand_motor_joint"};
   std::vector<double> positions;
 
-  if(is_hand_open)
-  {
+  if(is_hand_open) {
     RCLCPP_DEBUG(this->get_logger(), "Grasp");
     positions.push_back(-0.105);
   }
-  else
-  {
+  else {
     RCLCPP_DEBUG(this->get_logger(), "Open hand");
     positions.push_back(+1.239);
   }
@@ -310,8 +282,7 @@ void HandymanTeleopKey::operateHand(bool is_hand_open)
 }
 
 
-void HandymanTeleopKey::showHelp()
-{
+void HandymanTeleopKey::showHelp() {
   puts("Operate by Keyboard");
   puts("---------------------------");
   puts("arrow keys : Move HSR");
@@ -343,8 +314,7 @@ void HandymanTeleopKey::showHelp()
   puts(("9 : Send "+MSG_GIVE_UP).c_str());
 }
 
-int HandymanTeleopKey::run(int argc, char **argv)
-{
+int HandymanTeleopKey::run(int argc, char **argv) {
   char c;
 
   /////////////////////////////////////////////
@@ -412,191 +382,157 @@ int HandymanTeleopKey::run(int argc, char **argv)
   std::string arm_flex_joint_name   = "arm_flex_joint";
   std::string wrist_flex_joint_name = "wrist_flex_joint";
 
-  while (rclcpp::ok())
-  {
-    if(canReceive(kfd))
-    {
+  while (rclcpp::ok()) {
+    if(canReceive(kfd)) {
       // get the next event from the keyboard
-      if(read(kfd, &c, 1) < 0)
-      {
+      if(read(kfd, &c, 1) < 0) {
         perror("read():");
         exit(EXIT_FAILURE);
       }
 
-      switch(c)
-      {
-        case KEYCODE_0:
-        {
+      switch(c) {
+        case KEYCODE_0: {
           sendMessage(MSG_I_AM_READY);
           break;
         }
-        case KEYCODE_1:
-        {
+        case KEYCODE_1: {
           sendMessage(MSG_ROOM_REACHED);
           break;
         }
-        case KEYCODE_2:
-        {
+        case KEYCODE_2: {
           sendMessage(MSG_OBJECT_GRASPED);
           break;
         }
-        case KEYCODE_3:
-        {
+        case KEYCODE_3: {
           sendMessage(MSG_TASK_FINISHED);
           break;
         }
-        case KEYCODE_6:
-        {
+        case KEYCODE_6: {
           sendMessage(MSG_DOES_NOT_EXIST);
           break;
         }
-        case KEYCODE_9:
-        {
+        case KEYCODE_9: {
           sendMessage(MSG_GIVE_UP);
           break;
         }
-        case KEYCODE_UP:
-        {
+        case KEYCODE_UP: {
           RCLCPP_DEBUG(this->get_logger(), "Go Forward");
           moveBaseTwist(+linear_coef*move_speed, 0.0, 0.0);
           break;
         }
-        case KEYCODE_DOWN:
-        {
+        case KEYCODE_DOWN: {
           RCLCPP_DEBUG(this->get_logger(), "Go Backward");
           moveBaseTwist(-linear_coef*move_speed, 0.0, 0.0);
           break;
         }
-        case KEYCODE_RIGHT:
-        {
+        case KEYCODE_RIGHT: {
           RCLCPP_DEBUG(this->get_logger(), "Go Right");
           moveBaseTwist(0.0, 0.0, -angular_coef*move_speed);
           break;
         }
-        case KEYCODE_LEFT:
-        {
+        case KEYCODE_LEFT: {
           RCLCPP_DEBUG(this->get_logger(), "Go Left");
           moveBaseTwist(0.0, 0.0, +angular_coef*move_speed);
           break;
         }
-        case KEYCODE_SPACE:
-        {
+        case KEYCODE_SPACE: {
           RCLCPP_DEBUG(this->get_logger(), "Stop");
           moveBaseTwist(0.0, 0.0, 0.0);
           break;
         }
-        case KEYCODE_U:
-        {
+        case KEYCODE_U: {
           RCLCPP_DEBUG(this->get_logger(), "Move Left Forward");
           moveBaseJointTrajectory(+1.0, +1.0, +M_PI_4, 10);
           break;
         }
-        case KEYCODE_I:
-        {
+        case KEYCODE_I: {
           RCLCPP_DEBUG(this->get_logger(), "Move Forward");
           moveBaseJointTrajectory(+1.0, 0.0, 0.0, 10);
           break;
         }
-        case KEYCODE_O:
-        {
+        case KEYCODE_O: {
           RCLCPP_DEBUG(this->get_logger(), "Move Right Forward");
           moveBaseJointTrajectory(+1.0, -1.0, -M_PI_4, 10);
           break;
         }
-        case KEYCODE_J:
-        {
+        case KEYCODE_J: {
           RCLCPP_DEBUG(this->get_logger(), "Move Left");
           moveBaseJointTrajectory(0.0, +1.0, +M_PI_2, 10);
           break;
         }
-        case KEYCODE_K:
-        {
+        case KEYCODE_K: {
           RCLCPP_DEBUG(this->get_logger(), "Stop");
           moveBaseJointTrajectory(0.0, 0.0, 0.0, 0.5);
           break;
         }
-        case KEYCODE_L:
-        {
+        case KEYCODE_L: {
           RCLCPP_DEBUG(this->get_logger(), "Move Right");
           moveBaseJointTrajectory(0.0, -1.0, -M_PI_2, 10);
           break;
         }
-        case KEYCODE_M:
-        {
+        case KEYCODE_M: {
           RCLCPP_DEBUG(this->get_logger(), "Move Left Backward");
           moveBaseJointTrajectory(-1.0, +1.0, +M_PI_2+M_PI_4, 10);
           break;
         }
-        case KEYCODE_COMMA:
-        {
+        case KEYCODE_COMMA: {
           RCLCPP_DEBUG(this->get_logger(), "Move Backward");
           moveBaseJointTrajectory(-1.0, 0.0, +M_PI, 10);
           break;
         }
-        case KEYCODE_PERIOD:
-        {
+        case KEYCODE_PERIOD: {
           RCLCPP_DEBUG(this->get_logger(), "Move Right Backward");
           moveBaseJointTrajectory(-1.0, -1.0, -M_PI_2-M_PI_4, 10);
           break;
         }
-        case KEYCODE_Q:
-        {
+        case KEYCODE_Q: {
           RCLCPP_DEBUG(this->get_logger(), "Move Speed Up");
           move_speed *= 2;
           if(move_speed > 2  ){ move_speed=2; }
           break;
         }
-        case KEYCODE_Z:
-        {
+        case KEYCODE_Z: {
           RCLCPP_DEBUG(this->get_logger(), "Move Speed Down");
           move_speed /= 2;
           if(move_speed < 0.125){ move_speed=0.125; }
           break;
         }
-        case KEYCODE_Y:
-        {
+        case KEYCODE_Y: {
           RCLCPP_DEBUG(this->get_logger(), "Up Torso");
           operateArm(arm_lift_joint_name, 0.69, std::max<int>((int)(std::abs(0.69 - arm_lift_joint_pos1_) / 0.05), 1));
           break;
         }
-        case KEYCODE_H:
-        {
+        case KEYCODE_H: {
           RCLCPP_DEBUG(this->get_logger(), "Stop Torso");
           operateArm(arm_lift_joint_name, 2.0*arm_lift_joint_pos1_-arm_lift_joint_pos2_, 0.5);
           break;
         }
-        case KEYCODE_N:
-        {
+        case KEYCODE_N: {
           RCLCPP_DEBUG(this->get_logger(), "Down Torso");
           operateArm(arm_lift_joint_name, 0.0, std::max<int>((int)(std::abs(0.0 - arm_lift_joint_pos1_) / 0.05), 1));
           break;
         }
-        case KEYCODE_A:
-        {
+        case KEYCODE_A: {
           RCLCPP_DEBUG(this->get_logger(), "Rotate Arm - Vertical");
           operateArmFlex(0.0, -1.57);
           break;
         }
-        case KEYCODE_B:
-        {
+        case KEYCODE_B: {
           RCLCPP_DEBUG(this->get_logger(), "Rotate Arm - Upward");
           operateArmFlex(-0.785, -0.785);
           break;
         }
-        case KEYCODE_C:
-        {
+        case KEYCODE_C: {
           RCLCPP_DEBUG(this->get_logger(), "Rotate Arm - Horizontal");
           operateArmFlex(-1.57, 0.0);
           break;
         }
-        case KEYCODE_D:
-        {
+        case KEYCODE_D: {
           RCLCPP_DEBUG(this->get_logger(), "Rotate Arm - Downward");
           operateArmFlex(-2.2, 0.35);
           break;
         }
-        case KEYCODE_G:
-        {
+        case KEYCODE_G: {
           operateHand(is_hand_open);
 
           is_hand_open = !is_hand_open;
