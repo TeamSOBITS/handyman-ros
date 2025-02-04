@@ -274,7 +274,7 @@ public:
           break;
         }
         case WaitForGrasping: {
-          if (rclcpp::Clock(RCL_SYSTEM_TIME).now() - waiting_start_time > rclcpp::Duration::from_seconds(3.0)) {
+          if (this ->now() - waiting_start_time > rclcpp::Duration::from_seconds(3.0)) {
             sendMessage(pub_msg, MSG_OBJECT_GRASPED);
             step_++;
           }
