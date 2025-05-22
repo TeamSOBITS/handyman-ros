@@ -43,14 +43,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument('sub_msg_to_robot_topic_name', default_value='/handyman/message/to_robot'),
-        DeclareLaunchArgument('pub_msg_to_moderator_topic_name', default_value='/handyman/message/to_moderator'),
-        DeclareLaunchArgument('pub_base_twist_topic_name', default_value='/hsrb/command_velocity'),
-        DeclareLaunchArgument('pub_arm_trajectory_topic_name', default_value='/hsrb/arm_trajectory_controller/command'),
-        DeclareLaunchArgument('pub_gripper_trajectory_topic_name', default_value='/hsrb/gripper_controller/command'),
-        DeclareLaunchArgument('sigverse_ros_bridge_port', default_value='50001'),
-        DeclareLaunchArgument('sync_time_num', default_value='1'),
-        DeclareLaunchArgument('ros_bridge_port', default_value='9090'),
         handyman_node,
         sigverse_ros_bridge_launch_file
     ])

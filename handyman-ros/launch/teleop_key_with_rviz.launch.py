@@ -51,17 +51,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument('sub_msg_to_robot_topic_name', default_value='/handyman/message/to_robot'),
-        DeclareLaunchArgument('pub_msg_to_moderator_topic_name', default_value='/handyman/message/to_moderator'),
-        DeclareLaunchArgument('sub_joint_state_topic_name', default_value='/hsrb/joint_states'),
-        DeclareLaunchArgument('pub_base_twist_topic_name', default_value='/hsrb/command_velocity'),
-        DeclareLaunchArgument('pub_arm_trajectory_topic_name', default_value='/hsrb/arm_trajectory_controller/command'),
-        DeclareLaunchArgument('pub_gripper_trajectory_topic_name', default_value='/hsrb/gripper_controller/command'),
-        DeclareLaunchArgument('sub_laser_scan_topic_name', default_value='/hsrb/base_scan'),
-        DeclareLaunchArgument('rgbd_camera', default_value='head_rgbd_sensor'),
-        DeclareLaunchArgument('sigverse_ros_bridge_port', default_value='50001'),
-        DeclareLaunchArgument('sync_time_num', default_value='1'),
-        DeclareLaunchArgument('ros_bridge_port', default_value='9090'),
         teleop_key_handyman_node,
         sigverse_ros_bridge_launch_file,
         rviz_node
