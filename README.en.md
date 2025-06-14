@@ -23,7 +23,7 @@
         <li><a href="#installation">Installation</a></li>
       </ul>
     </li>
-    <li><a href="#launch-and-usage">Usage</a></li>
+    <li><a href="#launch-and-usage">Launch and Usage</a></li>
     <li><a href="#milestones">Milestones</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#references">References</a></li>
