@@ -1,6 +1,6 @@
 <a name="readme-top"></a>
 
-[JA](README.md) | [EN](README.en.md)
+[JP](README.md) | [EN](README.en.md)
 
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
@@ -18,7 +18,7 @@
       <a href="#概要">概要</a>
     </li>
     <li>
-      <a href="#環境構築">環境構築</a>
+      <a href="#セットアップ">セットアップ</a>
       <ul>
         <li><a href="#環境条件">環境条件</a></li>
         <li><a href="#インストール方法">インストール方法</a></li>
@@ -40,8 +40,8 @@
 <p align="right">(<a href="#readme-top">上に戻る</a>)</p>
 
 
-<!-- 環境構築 -->
-## 環境構築
+<!-- セットアップ -->
+## セットアップ
 
 ここで，本レポジトリのセットアップ方法について説明します．
 
