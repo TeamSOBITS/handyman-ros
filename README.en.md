@@ -6,7 +6,7 @@
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
-[![License][license-shield]][license-url]
+[![License: Custom][license-shield]][license-url]
 
 # ROS2 Package for Handyman
 
@@ -139,5 +139,5 @@ Please check the [Issue page](https://www.google.com/search?q=issues-url) to see
 [stars-url]: https://github.com/TeamSOBITS/handyman-ros/stargazers
 [issues-shield]: https://img.shields.io/github/issues/TeamSOBITS/handyman-ros.svg?style=for-the-badge
 [issues-url]: https://github.com/TeamSOBITS/handyman-ros/issues
-[license-shield]: https://img.shields.io/github/license/TeamSOBITS/handyman-ros.svg?style=for-the-badge
-[license-url]: LICENSE
+[license-shield]: https://img.shields.io/badge/License-SIGVerse_License-orange.svg?style=for-the-badge
+[license-url]: https://github.com/TeamSOBITS/handyman-ros/blob/humble-devel/license/LICENSE.txt
