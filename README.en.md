@@ -124,7 +124,7 @@ Please check the [Issue page](https://www.google.com/search?q=issues-url) to see
   * [handyman-ros](https://github.com/RoboCupatHomeSim/handyman-ros)
   * [OS and ROS2 version](https://github.com/RoboCupatHomeSim/documents/blob/master/SoftwareManual/Environment.md#ubuntu-pc)
   * [rosbridge\_suite](http://wiki.ros.org/rosbridge_suite)
-  * [sigverse\_ros\_bridge](https://github.com/SIGVerse/ros_package/tree/humble-devel/sigverse_ros_bridge)
+  * [sigverse\_ros\_bridge](https://github.com/SIGVerse/sigverse_ros_package)
   * [wiki page](https://github.com/RoboCupatHomeSim/handyman-ros/wiki).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
