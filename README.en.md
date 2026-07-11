@@ -50,9 +50,9 @@ To ensure proper operation, please set up the following required environment:
 
 | System | Version |
 |---|---|
-| Ubuntu | 22.04 (Jammy Jellyfish) |
-| ROS | Humble Hawksbill |
-| Python | 3.10 |
+| Ubuntu | 24.04 (Noble Numbat) |
+| ROS | Jazzy Jalisco |
+| Python | 3.12 |
 
 If you have not installed the [HSR Sim Common](https://github.com/TeamSOBITS/hsr_sim_common) package, please install it.
 
@@ -66,7 +66,7 @@ If you have not installed the [HSR Sim Common](https://github.com/TeamSOBITS/hsr
     ```
 2. Clone this repository.
     ```sh
-    git clone -b humble-devel [https://github.com/TeamSOBITS/handyman-ros.git](https://github.com/TeamSOBITS/handyman-ros.git)
+    git clone -b jazzy-devel [https://github.com/TeamSOBITS/handyman-ros.git](https://github.com/TeamSOBITS/handyman-ros.git)
     ```
 3. Compile the package.
     ```sh
@@ -140,4 +140,4 @@ Please check the [Issue page](https://www.google.com/search?q=issues-url) to see
 [issues-shield]: https://img.shields.io/github/issues/TeamSOBITS/handyman-ros.svg?style=for-the-badge
 [issues-url]: https://github.com/TeamSOBITS/handyman-ros/issues
 [license-shield]: https://img.shields.io/badge/License-SIGVerse_License-orange.svg?style=for-the-badge
-[license-url]: https://github.com/TeamSOBITS/handyman-ros/blob/humble-devel/license/LICENSE.txt
+[license-url]: https://github.com/TeamSOBITS/handyman-ros/blob/jazzy-devel/license/LICENSE.txt

@@ -53,9 +53,9 @@
 
 | System  | Version |
 | ------------- | ------------- |
-| Ubuntu | 22.04 (Jammy Jellyfish) |
-| ROS | Humble Hawksbill |
-| Python | 3.10 |
+| Ubuntu | 24.04 (Noble Numbat) |
+| ROS | Jazzy Jalisco |
+| Python | 3.12 |
 
 [HSR Sim Common](https://github.com/TeamSOBITS/hsr_sim_common)パッケージをインストールしていない場合はインストールしてください．
 
@@ -70,7 +70,7 @@
    ```
 2. 本レポジトリをcloneします．
    ```sh
-   git clone -b humble-devel https://github.com/TeamSOBITS/handyman-ros.git
+   git clone -b jazzy-devel https://github.com/TeamSOBITS/handyman-ros.git
    ```
 3. パッケージをコンパイルします．
    ```sh
@@ -138,4 +138,4 @@ HSR をキーボード操作で操作できます．
 [issues-shield]: https://img.shields.io/github/issues/TeamSOBITS/handyman-ros.svg?style=for-the-badge
 [issues-url]: https://github.com/TeamSOBITS/handyman-ros/issues
 [license-shield]: https://img.shields.io/badge/License-SIGVerse_License-orange.svg?style=for-the-badge
-[license-url]: https://github.com/TeamSOBITS/handyman-ros/blob/humble-devel/license/LICENSE.txt
+[license-url]: https://github.com/TeamSOBITS/handyman-ros/blob/jazzy-devel/license/LICENSE.txt
